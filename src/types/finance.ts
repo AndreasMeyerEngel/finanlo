@@ -39,7 +39,7 @@ export interface Category {
 export interface Account {
   id: string;
   name: string;
-  type: 'corrente' | 'poupanca' | 'dinheiro' | 'investimento';
+  type: 'corrente' | 'poupanca' | 'dinheiro' | 'investimento' | 'credito';
   balance: number;
 }
 

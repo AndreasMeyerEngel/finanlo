@@ -27,7 +27,7 @@ export function Configuracoes({ controller }: PageProps) {
 
     actions.addAccount({
       name: accountForm.name.trim(),
-      type: accountForm.type as 'corrente' | 'poupanca' | 'dinheiro' | 'investimento',
+      type: accountForm.type as 'corrente' | 'poupanca' | 'dinheiro' | 'investimento' | 'credito',
       balance,
     });
     setAccountForm({ ...accountForm, name: '', balance: '' });
@@ -114,6 +114,7 @@ export function Configuracoes({ controller }: PageProps) {
               <option value="poupanca">poupança</option>
               <option value="dinheiro">dinheiro</option>
               <option value="investimento">investimento</option>
+              <option value="credito">crédito</option>
             </select>
           </Field>
           <Field label="Saldo">
