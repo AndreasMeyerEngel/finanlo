@@ -89,6 +89,7 @@ function createTransactionFromExpense(expense: Expense): Transaction {
 function upsertInvoiceForPurchase(invoices: Invoice[], purchase: CardPurchase, card: CreditCard): Invoice[] {
   let nextInvoices = [...invoices];
   const purchaseDate = new Date(`${purchase.purchaseDate}T12:00:00`);
+  const amountPerMonth = purchase.billingMode === 'recorrente' ? purchase.totalAmount : purchase.installmentAmount;
 
   Array.from({ length: purchase.installments }, (_, installmentIndex) => {
     const installmentDate = addMonths(purchaseDate, installmentIndex);
@@ -102,7 +103,7 @@ function upsertInvoiceForPurchase(invoices: Invoice[], purchase: CardPurchase, c
         invoice.id === id
           ? {
               ...invoice,
-              totalAmount: invoice.totalAmount + purchase.installmentAmount,
+              totalAmount: invoice.totalAmount + amountPerMonth,
               status: invoice.status === 'paga' ? 'fechada' : invoice.status,
             }
           : invoice,
@@ -114,7 +115,7 @@ function upsertInvoiceForPurchase(invoices: Invoice[], purchase: CardPurchase, c
       id,
       cardId: purchase.cardId,
       month,
-      totalAmount: purchase.installmentAmount,
+      totalAmount: amountPerMonth,
       paidAmount: 0,
       dueDate,
       status: 'aberta',
@@ -414,9 +415,13 @@ export function useFinanceData(user: User) {
 
       const purchase: CardPurchase = {
         ...input,
+        billingMode: input.billingMode ?? 'parcelado',
         id: uid('purchase'),
         currentInstallment: 1,
-        installmentAmount: input.totalAmount / Math.max(1, input.installments),
+        installmentAmount:
+          input.billingMode === 'recorrente'
+            ? input.totalAmount
+            : input.totalAmount / Math.max(1, input.installments),
       };
 
       return {
@@ -424,7 +429,13 @@ export function useFinanceData(user: User) {
         cardPurchases: [purchase, ...current.cardPurchases],
         creditCards: current.creditCards.map((item) =>
           item.id === card.id
-            ? { ...item, availableLimit: Math.max(0, item.availableLimit - purchase.totalAmount) }
+            ? {
+                ...item,
+                availableLimit: Math.max(
+                  0,
+                  item.availableLimit - (purchase.billingMode === 'recorrente' ? purchase.installmentAmount : purchase.totalAmount),
+                ),
+              }
             : item,
         ),
         invoices: upsertInvoiceForPurchase(current.invoices, purchase, card),

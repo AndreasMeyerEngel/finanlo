@@ -115,6 +115,7 @@ export interface CardPurchase {
   purchaseDate: string;
   categoryId: string;
   cardId: string;
+  billingMode?: 'parcelado' | 'recorrente';
   installments: number;
   currentInstallment: number;
   installmentAmount: number;

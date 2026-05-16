@@ -23,6 +23,7 @@ export function Faturas({ controller }: PageProps) {
     purchaseDate: toIsoDate(new Date()),
     categoryId: expenseCategories[0]?.id ?? '',
     cardId: data.creditCards[0]?.id ?? '',
+    billingMode: 'parcelado',
     installments: 1,
     notes: '',
   });
@@ -32,6 +33,11 @@ export function Faturas({ controller }: PageProps) {
   const invoiceTotal = currentInvoices.reduce((total, invoice) => total + invoice.totalAmount, 0);
   const invoicePaid = currentInvoices.reduce((total, invoice) => total + invoice.paidAmount, 0);
   const invoiceOpen = invoiceTotal - invoicePaid;
+  const purchaseAmount = parseCurrencyInput(purchaseForm.totalAmount);
+  const installmentPreview =
+    purchaseForm.billingMode === 'recorrente'
+      ? purchaseAmount
+      : purchaseAmount / Math.max(1, Number(purchaseForm.installments));
 
   function handleCardSubmit(event: FormEvent) {
     event.preventDefault();
@@ -69,6 +75,7 @@ export function Faturas({ controller }: PageProps) {
       purchaseDate: purchaseForm.purchaseDate,
       categoryId: purchaseForm.categoryId,
       cardId: purchaseForm.cardId,
+      billingMode: purchaseForm.billingMode as 'parcelado' | 'recorrente',
       installments: Number(purchaseForm.installments),
       notes: purchaseForm.notes,
     });
@@ -146,6 +153,16 @@ export function Faturas({ controller }: PageProps) {
                 onChange={(event) => setPurchaseForm({ ...purchaseForm, totalAmount: event.target.value })}
               />
             </Field>
+            <Field label="Tipo de lançamento">
+              <select
+                className={inputClass}
+                value={purchaseForm.billingMode}
+                onChange={(event) => setPurchaseForm({ ...purchaseForm, billingMode: event.target.value })}
+              >
+                <option value="parcelado">Parcelar valor total</option>
+                <option value="recorrente">Repetir mesmo valor</option>
+              </select>
+            </Field>
             <Field label="Data da compra">
               <input
                 className={inputClass}
@@ -176,7 +193,7 @@ export function Faturas({ controller }: PageProps) {
                 ))}
               </select>
             </Field>
-            <Field label="Parcelas">
+            <Field label={purchaseForm.billingMode === 'recorrente' ? 'Meses recorrentes' : 'Parcelas'}>
               <input
                 className={inputClass}
                 type="number"
@@ -186,6 +203,17 @@ export function Faturas({ controller }: PageProps) {
                 onChange={(event) => setPurchaseForm({ ...purchaseForm, installments: Number(event.target.value) })}
               />
             </Field>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm dark:border-slate-800 dark:bg-slate-950 md:col-span-2">
+              <p className="text-slate-500 dark:text-slate-400">
+                {purchaseForm.billingMode === 'recorrente' ? 'Valor mensal recorrente' : 'Valor da parcela'}
+              </p>
+              <strong className="mt-1 block text-xl text-slate-950 dark:text-white">{formatCurrency(installmentPreview)}</strong>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                {purchaseForm.billingMode === 'recorrente'
+                  ? `${purchaseForm.installments} mês(es) de ${formatCurrency(installmentPreview)}.`
+                  : `${purchaseForm.installments} parcela(s) de ${formatCurrency(installmentPreview)}.`}
+              </p>
+            </div>
             <Field label="Observações" className="md:col-span-2">
               <input className={inputClass} value={purchaseForm.notes} onChange={(event) => setPurchaseForm({ ...purchaseForm, notes: event.target.value })} />
             </Field>
@@ -283,6 +311,7 @@ export function Faturas({ controller }: PageProps) {
               <th className="px-4 py-3">Cartão</th>
               <th className="px-4 py-3">Data</th>
               <th className="px-4 py-3">Categoria</th>
+              <th className="px-4 py-3">Tipo</th>
               <th className="px-4 py-3">Parcelas</th>
               <th className="px-4 py-3">Parcela</th>
               <th className="px-4 py-3">Total</th>
@@ -297,6 +326,7 @@ export function Faturas({ controller }: PageProps) {
                   <td className="px-4 py-3">{card?.name ?? 'Cartão'}</td>
                   <td className="px-4 py-3">{formatDate(purchase.purchaseDate)}</td>
                   <td className="px-4 py-3">{getCategoryName(data.categories, purchase.categoryId)}</td>
+                  <td className="px-4 py-3">{purchase.billingMode === 'recorrente' ? 'recorrente' : 'parcelado'}</td>
                   <td className="px-4 py-3">
                     {purchase.currentInstallment}/{purchase.installments}
                   </td>
