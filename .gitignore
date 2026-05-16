@@ -1,0 +1,29 @@
+# Dependencias
+node_modules/
+
+# Build
+dist/
+build/
+
+# Cache e artefatos TypeScript
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
+
+# Ambiente local
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor e sistema operacional
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
