@@ -1,10 +1,21 @@
-import { CheckCircle2, Plus } from 'lucide-react';
+import { CheckCircle2, Edit2, Plus, X } from 'lucide-react';
 import { FormEvent, useMemo, useState } from 'react';
 import { InvoiceChart } from '../components/Charts/FinanceCharts';
-import { Badge, Button, Field, Panel, SectionHeader, StatCard, TableShell, inputClass } from '../components/UI';
+import { Badge, Button, ConfirmDeleteButton, Field, Panel, SectionHeader, StatCard, TableShell, inputClass } from '../components/UI';
 import { formatCurrency, formatDate, getMonthKey, parseCurrencyInput, toIsoDate } from '../utils/formatters';
 import { getCategoryName, statusBadge } from './helpers';
 import type { PageProps } from './PageProps';
+
+type PurchaseFormState = {
+  description: string;
+  totalAmount: string;
+  purchaseDate: string;
+  categoryId: string;
+  cardId: string;
+  billingMode: 'parcelado' | 'recorrente';
+  installments: number;
+  notes: string;
+};
 
 export function Faturas({ controller }: PageProps) {
   const { data, invoiceSeries, actions } = controller;
@@ -17,7 +28,7 @@ export function Faturas({ controller }: PageProps) {
     dueDay: 25,
     color: '#2563eb',
   });
-  const [purchaseForm, setPurchaseForm] = useState({
+  const initialPurchaseForm: PurchaseFormState = {
     description: '',
     totalAmount: '',
     purchaseDate: toIsoDate(new Date()),
@@ -26,7 +37,9 @@ export function Faturas({ controller }: PageProps) {
     billingMode: 'parcelado',
     installments: 1,
     notes: '',
-  });
+  };
+  const [purchaseForm, setPurchaseForm] = useState<PurchaseFormState>(initialPurchaseForm);
+  const [editingPurchaseId, setEditingPurchaseId] = useState<string | null>(null);
 
   const currentMonth = getMonthKey(new Date());
   const currentInvoices = useMemo(() => data.invoices.filter((invoice) => invoice.month === currentMonth), [data.invoices, currentMonth]);
@@ -38,6 +51,15 @@ export function Faturas({ controller }: PageProps) {
     purchaseForm.billingMode === 'recorrente'
       ? purchaseAmount
       : purchaseAmount / Math.max(1, Number(purchaseForm.installments));
+
+  function resetPurchaseForm() {
+    setPurchaseForm({
+      ...initialPurchaseForm,
+      categoryId: expenseCategories[0]?.id ?? '',
+      cardId: data.creditCards[0]?.id ?? '',
+    });
+    setEditingPurchaseId(null);
+  }
 
   function handleCardSubmit(event: FormEvent) {
     event.preventDefault();
@@ -69,17 +91,45 @@ export function Faturas({ controller }: PageProps) {
       return;
     }
 
-    actions.addCardPurchase({
+    const purchasePayload = {
       description: purchaseForm.description.trim(),
       totalAmount,
       purchaseDate: purchaseForm.purchaseDate,
       categoryId: purchaseForm.categoryId,
       cardId: purchaseForm.cardId,
-      billingMode: purchaseForm.billingMode as 'parcelado' | 'recorrente',
+      billingMode: purchaseForm.billingMode,
       installments: Number(purchaseForm.installments),
       notes: purchaseForm.notes,
+    };
+
+    if (editingPurchaseId) {
+      actions.updateCardPurchase(editingPurchaseId, purchasePayload);
+    } else {
+      actions.addCardPurchase(purchasePayload);
+    }
+
+    resetPurchaseForm();
+  }
+
+  function handleEditPurchase(purchaseId: string) {
+    const purchase = data.cardPurchases.find((item) => item.id === purchaseId);
+
+    if (!purchase) {
+      return;
+    }
+
+    setEditingPurchaseId(purchase.id);
+    setPurchaseForm({
+      description: purchase.description,
+      totalAmount: String(purchase.totalAmount).replace('.', ','),
+      purchaseDate: purchase.purchaseDate,
+      categoryId: purchase.categoryId,
+      cardId: purchase.cardId,
+      billingMode: purchase.billingMode ?? 'parcelado',
+      installments: purchase.installments,
+      notes: purchase.notes ?? '',
     });
-    setPurchaseForm({ ...purchaseForm, description: '', totalAmount: '', notes: '' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   return (
@@ -137,7 +187,17 @@ export function Faturas({ controller }: PageProps) {
         </Panel>
 
         <Panel>
-          <h3 className="mb-4 text-base font-semibold text-slate-950 dark:text-white">Cadastrar compra no cartão</h3>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h3 className="text-base font-semibold text-slate-950 dark:text-white">
+              {editingPurchaseId ? 'Editar compra no cartão' : 'Cadastrar compra no cartão'}
+            </h3>
+            {editingPurchaseId ? (
+              <Button variant="ghost" className="min-h-8 px-2 py-1" onClick={resetPurchaseForm}>
+                <X size={14} />
+                Cancelar
+              </Button>
+            ) : null}
+          </div>
           <form className="grid gap-4 md:grid-cols-2" onSubmit={handlePurchaseSubmit}>
             <Field label="Descrição da compra">
               <input
@@ -157,7 +217,9 @@ export function Faturas({ controller }: PageProps) {
               <select
                 className={inputClass}
                 value={purchaseForm.billingMode}
-                onChange={(event) => setPurchaseForm({ ...purchaseForm, billingMode: event.target.value })}
+                onChange={(event) =>
+                  setPurchaseForm({ ...purchaseForm, billingMode: event.target.value as PurchaseFormState['billingMode'] })
+                }
               >
                 <option value="parcelado">Parcelar valor total</option>
                 <option value="recorrente">Repetir mesmo valor</option>
@@ -218,8 +280,8 @@ export function Faturas({ controller }: PageProps) {
               <input className={inputClass} value={purchaseForm.notes} onChange={(event) => setPurchaseForm({ ...purchaseForm, notes: event.target.value })} />
             </Field>
             <Button type="submit" className="md:col-span-2">
-              <Plus size={18} />
-              Adicionar compra
+              {editingPurchaseId ? <CheckCircle2 size={18} /> : <Plus size={18} />}
+              {editingPurchaseId ? 'Salvar compra' : 'Adicionar compra'}
             </Button>
           </form>
         </Panel>
@@ -304,7 +366,7 @@ export function Faturas({ controller }: PageProps) {
 
       <Panel>
         <h3 className="mb-4 text-base font-semibold text-slate-950 dark:text-white">Compras das faturas</h3>
-        <TableShell minWidth="min-w-[700px]">
+        <TableShell minWidth="min-w-[920px]">
           <thead className="bg-slate-50 text-xs uppercase tracking-normal text-slate-500 dark:bg-slate-900 dark:text-slate-400">
             <tr>
               <th className="px-4 py-3">Compra</th>
@@ -315,6 +377,7 @@ export function Faturas({ controller }: PageProps) {
               <th className="px-4 py-3">Parcelas</th>
               <th className="px-4 py-3">Parcela</th>
               <th className="px-4 py-3">Total</th>
+              <th className="px-4 py-3">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -332,6 +395,15 @@ export function Faturas({ controller }: PageProps) {
                   </td>
                   <td className="px-4 py-3">{formatCurrency(purchase.installmentAmount)}</td>
                   <td className="px-4 py-3 font-semibold">{formatCurrency(purchase.totalAmount)}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button variant="ghost" className="min-h-8 px-2 py-1" onClick={() => handleEditPurchase(purchase.id)}>
+                        <Edit2 size={14} />
+                        Editar
+                      </Button>
+                      <ConfirmDeleteButton onConfirm={() => actions.deleteCardPurchase(purchase.id)} />
+                    </div>
+                  </td>
                 </tr>
               );
             })}

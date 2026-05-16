@@ -125,6 +125,48 @@ function upsertInvoiceForPurchase(invoices: Invoice[], purchase: CardPurchase, c
   return nextInvoices;
 }
 
+function getPurchaseLimitUsage(purchase: CardPurchase): number {
+  return purchase.billingMode === 'recorrente' ? purchase.installmentAmount : purchase.totalAmount;
+}
+
+function recalculateCreditCardLimits(cards: CreditCard[], purchases: CardPurchase[]): CreditCard[] {
+  return cards.map((card) => {
+    const usedLimit = purchases
+      .filter((purchase) => purchase.cardId === card.id)
+      .reduce((total, purchase) => total + getPurchaseLimitUsage(purchase), 0);
+
+    return {
+      ...card,
+      availableLimit: Math.max(0, card.totalLimit - usedLimit),
+    };
+  });
+}
+
+function rebuildInvoicesFromPurchases(
+  purchases: CardPurchase[],
+  cards: CreditCard[],
+  existingInvoices: Invoice[],
+): Invoice[] {
+  const invoices = purchases.reduce<Invoice[]>((nextInvoices, purchase) => {
+    const card = cards.find((item) => item.id === purchase.cardId);
+    return card ? upsertInvoiceForPurchase(nextInvoices, purchase, card) : nextInvoices;
+  }, []);
+
+  return invoices
+    .map((invoice) => {
+      const existingInvoice = existingInvoices.find((item) => item.id === invoice.id);
+      const paidAmount = Math.min(existingInvoice?.paidAmount ?? 0, invoice.totalAmount);
+      const status = paidAmount >= invoice.totalAmount ? 'paga' : existingInvoice?.status === 'vencida' ? 'vencida' : invoice.status;
+
+      return {
+        ...invoice,
+        paidAmount,
+        status,
+      };
+    })
+    .sort((first, second) => first.month.localeCompare(second.month));
+}
+
 export function useFinanceData(user: User) {
   const [data, setData] = useState<FinanceData>(() => createEmptyFinanceData(getUserDisplayName(user)));
   const [dataLoading, setDataLoading] = useState(true);
@@ -424,21 +466,56 @@ export function useFinanceData(user: User) {
             : input.totalAmount / Math.max(1, input.installments),
       };
 
+      const cardPurchases = [purchase, ...current.cardPurchases];
+
       return {
         ...current,
-        cardPurchases: [purchase, ...current.cardPurchases],
-        creditCards: current.creditCards.map((item) =>
-          item.id === card.id
-            ? {
-                ...item,
-                availableLimit: Math.max(
-                  0,
-                  item.availableLimit - (purchase.billingMode === 'recorrente' ? purchase.installmentAmount : purchase.totalAmount),
-                ),
-              }
-            : item,
-        ),
-        invoices: upsertInvoiceForPurchase(current.invoices, purchase, card),
+        cardPurchases,
+        creditCards: recalculateCreditCardLimits(current.creditCards, cardPurchases),
+        invoices: rebuildInvoicesFromPurchases(cardPurchases, current.creditCards, current.invoices),
+      };
+    });
+  }, []);
+
+  const updateCardPurchase = useCallback((id: string, input: Omit<CardPurchase, 'id' | 'currentInstallment' | 'installmentAmount'>) => {
+    setData((current) => {
+      const existingPurchase = current.cardPurchases.find((purchase) => purchase.id === id);
+      const card = current.creditCards.find((item) => item.id === input.cardId);
+
+      if (!existingPurchase || !card) {
+        return current;
+      }
+
+      const purchase: CardPurchase = {
+        ...input,
+        billingMode: input.billingMode ?? 'parcelado',
+        id,
+        currentInstallment: existingPurchase.currentInstallment,
+        installmentAmount:
+          input.billingMode === 'recorrente'
+            ? input.totalAmount
+            : input.totalAmount / Math.max(1, input.installments),
+      };
+      const cardPurchases = current.cardPurchases.map((item) => (item.id === id ? purchase : item));
+
+      return {
+        ...current,
+        cardPurchases,
+        creditCards: recalculateCreditCardLimits(current.creditCards, cardPurchases),
+        invoices: rebuildInvoicesFromPurchases(cardPurchases, current.creditCards, current.invoices),
+      };
+    });
+  }, []);
+
+  const deleteCardPurchase = useCallback((id: string) => {
+    setData((current) => {
+      const cardPurchases = current.cardPurchases.filter((purchase) => purchase.id !== id);
+
+      return {
+        ...current,
+        cardPurchases,
+        creditCards: recalculateCreditCardLimits(current.creditCards, cardPurchases),
+        invoices: rebuildInvoicesFromPurchases(cardPurchases, current.creditCards, current.invoices),
       };
     });
   }, []);
@@ -620,6 +697,8 @@ export function useFinanceData(user: User) {
       markExpensePaid,
       addCreditCard,
       addCardPurchase,
+      updateCardPurchase,
+      deleteCardPurchase,
       markInvoicePaid,
       addDebt,
       updateDebt,
