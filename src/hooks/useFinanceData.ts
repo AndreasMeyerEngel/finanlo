@@ -129,6 +129,8 @@ export function useFinanceData(user: User) {
   const [dataLoading, setDataLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [persistenceError, setPersistenceError] = useState<string | null>(null);
+  const userId = user.id;
+  const userName = useMemo(() => getUserDisplayName(user), [user.email, user.id, user.user_metadata?.name]);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', data.settings.theme === 'dark');
@@ -143,7 +145,6 @@ export function useFinanceData(user: User) {
 
     const client = supabase;
     let cancelled = false;
-    const userName = getUserDisplayName(user);
     const emptyData = createEmptyFinanceData(userName);
 
     setDataLoading(true);
@@ -153,7 +154,7 @@ export function useFinanceData(user: User) {
       const { data: profile, error } = await client
         .from('finance_profiles')
         .select('data')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .maybeSingle();
 
       if (cancelled) {
@@ -169,7 +170,7 @@ export function useFinanceData(user: User) {
 
       if (!profile) {
         const { error: insertError } = await client.from('finance_profiles').insert({
-          user_id: user.id,
+          user_id: userId,
           data: emptyData,
         });
 
@@ -195,7 +196,7 @@ export function useFinanceData(user: User) {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [userId, userName]);
 
   useEffect(() => {
     if (!supabase || dataLoading) {
@@ -206,7 +207,7 @@ export function useFinanceData(user: User) {
     const timeout = window.setTimeout(async () => {
       setIsSyncing(true);
       const { error } = await client.from('finance_profiles').upsert({
-        user_id: user.id,
+        user_id: userId,
         data,
       });
 
@@ -220,7 +221,7 @@ export function useFinanceData(user: User) {
     }, 500);
 
     return () => window.clearTimeout(timeout);
-  }, [data, dataLoading, user.id]);
+  }, [data, dataLoading, userId]);
 
   const metrics = useMemo(() => calculateDashboardMetrics(data), [data]);
   const monthlySeries = useMemo(() => buildMonthlySeries(data), [data]);
@@ -232,8 +233,8 @@ export function useFinanceData(user: User) {
   const notifications = useMemo(() => buildNotifications(data), [data]);
 
   const resetData = useCallback(() => {
-    setData(createEmptyFinanceData(getUserDisplayName(user)));
-  }, [user]);
+    setData(createEmptyFinanceData(userName));
+  }, [userName]);
 
   const updateSettings = useCallback((settings: Partial<Settings>) => {
     setData((current) => ({
