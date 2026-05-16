@@ -1,5 +1,7 @@
+import type { User } from '@supabase/supabase-js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { mockFinanceData } from '../data/mockData';
+import { createEmptyFinanceData, normalizeFinanceData } from '../data/emptyData';
+import { supabase } from '../lib/supabase';
 import type {
   CardPurchase,
   Account,
@@ -27,8 +29,6 @@ import {
 } from '../utils/calculations';
 import { addMonths, getMonthKey, toIsoDate } from '../utils/formatters';
 
-const STORAGE_KEY = 'operacao-nome-limpo:v1';
-
 type CollectionName =
   | 'transactions'
   | 'dailyExpenses'
@@ -43,18 +43,9 @@ type CollectionName =
 
 const uid = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-function loadInitialData(): FinanceData {
-  const raw = localStorage.getItem(STORAGE_KEY);
-
-  if (!raw) {
-    return mockFinanceData;
-  }
-
-  try {
-    return JSON.parse(raw) as FinanceData;
-  } catch {
-    return mockFinanceData;
-  }
+function getUserDisplayName(user: User): string {
+  const metadataName = typeof user.user_metadata?.name === 'string' ? user.user_metadata.name : '';
+  return metadataName || user.email?.split('@')[0] || 'Usuário';
 }
 
 function createTransactionFromIncome(income: Income): Transaction {
@@ -133,13 +124,103 @@ function upsertInvoiceForPurchase(invoices: Invoice[], purchase: CardPurchase, c
   return nextInvoices;
 }
 
-export function useFinanceData() {
-  const [data, setData] = useState<FinanceData>(loadInitialData);
+export function useFinanceData(user: User) {
+  const [data, setData] = useState<FinanceData>(() => createEmptyFinanceData(getUserDisplayName(user)));
+  const [dataLoading, setDataLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [persistenceError, setPersistenceError] = useState<string | null>(null);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     document.documentElement.classList.toggle('dark', data.settings.theme === 'dark');
   }, [data]);
+
+  useEffect(() => {
+    if (!supabase) {
+      setDataLoading(false);
+      setPersistenceError('Supabase não configurado.');
+      return;
+    }
+
+    const client = supabase;
+    let cancelled = false;
+    const userName = getUserDisplayName(user);
+    const emptyData = createEmptyFinanceData(userName);
+
+    setDataLoading(true);
+    setPersistenceError(null);
+
+    async function loadProfile() {
+      const { data: profile, error } = await client
+        .from('finance_profiles')
+        .select('data')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (cancelled) {
+        return;
+      }
+
+      if (error) {
+        setPersistenceError(error.message);
+        setData(emptyData);
+        setDataLoading(false);
+        return;
+      }
+
+      if (!profile) {
+        const { error: insertError } = await client.from('finance_profiles').insert({
+          user_id: user.id,
+          data: emptyData,
+        });
+
+        if (cancelled) {
+          return;
+        }
+
+        if (insertError) {
+          setPersistenceError(insertError.message);
+        }
+
+        setData(emptyData);
+        setDataLoading(false);
+        return;
+      }
+
+      setData(normalizeFinanceData(profile.data, userName));
+      setDataLoading(false);
+    }
+
+    loadProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  useEffect(() => {
+    if (!supabase || dataLoading) {
+      return;
+    }
+
+    const client = supabase;
+    const timeout = window.setTimeout(async () => {
+      setIsSyncing(true);
+      const { error } = await client.from('finance_profiles').upsert({
+        user_id: user.id,
+        data,
+      });
+
+      if (error) {
+        setPersistenceError(error.message);
+      } else {
+        setPersistenceError(null);
+      }
+
+      setIsSyncing(false);
+    }, 500);
+
+    return () => window.clearTimeout(timeout);
+  }, [data, dataLoading, user.id]);
 
   const metrics = useMemo(() => calculateDashboardMetrics(data), [data]);
   const monthlySeries = useMemo(() => buildMonthlySeries(data), [data]);
@@ -151,8 +232,8 @@ export function useFinanceData() {
   const notifications = useMemo(() => buildNotifications(data), [data]);
 
   const resetData = useCallback(() => {
-    setData(mockFinanceData);
-  }, []);
+    setData(createEmptyFinanceData(getUserDisplayName(user)));
+  }, [user]);
 
   const updateSettings = useCallback((settings: Partial<Settings>) => {
     setData((current) => ({
@@ -238,27 +319,28 @@ export function useFinanceData() {
 
   const addDailyExpense = useCallback((input: Omit<DailyExpense, 'id'>) => {
     const dailyExpense: DailyExpense = { ...input, id: uid('daily') };
-    const transaction: Transaction = {
-      id: uid('tr-daily'),
-      type: 'despesa',
-      description: dailyExpense.description,
-      amount: dailyExpense.amount,
-      date: dailyExpense.date,
-      categoryId: dailyExpense.categoryId,
-      accountId: 'acc-nubank',
-      paymentMethod: dailyExpense.paymentMethod,
-      notes: dailyExpense.notes,
-      recurring: false,
-      installment: false,
-      status: 'pago',
-      source: 'daily',
-      sourceId: dailyExpense.id,
-    };
-
     setData((current) => ({
       ...current,
       dailyExpenses: [dailyExpense, ...current.dailyExpenses],
-      transactions: [transaction, ...current.transactions],
+      transactions: [
+        {
+          id: uid('tr-daily'),
+          type: 'despesa',
+          description: dailyExpense.description,
+          amount: dailyExpense.amount,
+          date: dailyExpense.date,
+          categoryId: dailyExpense.categoryId,
+          accountId: current.accounts[0]?.id ?? '',
+          paymentMethod: dailyExpense.paymentMethod,
+          notes: dailyExpense.notes,
+          recurring: false,
+          installment: false,
+          status: 'pago',
+          source: 'daily',
+          sourceId: dailyExpense.id,
+        },
+        ...current.transactions,
+      ],
     }));
   }, []);
 
@@ -367,7 +449,7 @@ export function useFinanceData() {
         dueDate: invoice.dueDate,
         paidDate: todayDate,
         categoryId: 'cat-card',
-        accountId: 'acc-nubank',
+        accountId: current.accounts[0]?.id ?? '',
         paymentMethod: 'Pix',
         status: 'pago',
         recurring: false,
@@ -424,7 +506,7 @@ export function useFinanceData() {
         dueDate: todayDate,
         paidDate: todayDate,
         categoryId: 'cat-debts',
-        accountId: 'acc-nubank',
+        accountId: current.accounts[0]?.id ?? '',
         paymentMethod: 'Pix',
         status: 'pago',
         recurring: false,
@@ -500,6 +582,9 @@ export function useFinanceData() {
 
   return {
     data,
+    dataLoading,
+    isSyncing,
+    persistenceError,
     metrics,
     monthlySeries,
     categorySeries,

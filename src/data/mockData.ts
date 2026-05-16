@@ -42,7 +42,7 @@ const accounts: Account[] = [
   { id: 'acc-reserve', name: 'Reserva', type: 'poupanca', balance: 1850 },
 ];
 
-const categories: Category[] = [
+export const defaultCategories: Category[] = [
   { id: 'cat-food', name: 'Alimentação', type: 'despesa', color: '#ef4444', icon: 'Utensils', active: true },
   { id: 'cat-market', name: 'Mercado', type: 'despesa', color: '#f97316', icon: 'ShoppingCart', active: true },
   { id: 'cat-home', name: 'Moradia', type: 'despesa', color: '#6366f1', icon: 'Home', active: true },
@@ -535,7 +535,7 @@ const transactions: Transaction[] = [
 export const mockFinanceData: FinanceData = {
   settings,
   accounts,
-  categories,
+  categories: defaultCategories,
   transactions,
   dailyExpenses,
   incomes,

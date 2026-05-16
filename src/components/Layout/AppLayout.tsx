@@ -5,6 +5,7 @@ import {
   CreditCard,
   Landmark,
   LayoutDashboard,
+  LogOut,
   Menu,
   Moon,
   PieChart,
@@ -47,10 +48,12 @@ interface AppLayoutProps {
   activePage: PageId;
   setActivePage: (page: PageId) => void;
   controller: FinanceController;
+  currentUserEmail?: string;
+  onSignOut?: () => void;
   children: ReactNode;
 }
 
-export function AppLayout({ activePage, setActivePage, controller, children }: AppLayoutProps) {
+export function AppLayout({ activePage, setActivePage, controller, currentUserEmail, onSignOut, children }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
@@ -109,8 +112,21 @@ export function AppLayout({ activePage, setActivePage, controller, children }: A
         })}
       </nav>
       <div className="border-t border-slate-200 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] dark:border-slate-800">
-        <p className="text-xs text-slate-500 dark:text-slate-400">Usuário</p>
-        <strong className="mt-1 block text-sm text-slate-900 dark:text-white">{data.settings.userName}</strong>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs text-slate-500 dark:text-slate-400">Usuário</p>
+            <strong className="mt-1 block truncate text-sm text-slate-900 dark:text-white">{data.settings.userName}</strong>
+            {currentUserEmail ? <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{currentUserEmail}</p> : null}
+          </div>
+          {onSignOut ? (
+            <Button variant="ghost" className="h-9 w-9 shrink-0 p-0" onClick={onSignOut} aria-label="Sair">
+              <LogOut size={17} />
+            </Button>
+          ) : null}
+        </div>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          {controller.isSyncing ? 'Sincronizando...' : controller.persistenceError ? 'Erro ao salvar dados' : 'Dados sincronizados'}
+        </p>
       </div>
     </aside>
   );

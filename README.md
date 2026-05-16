@@ -15,6 +15,8 @@ Sistema web para controle financeiro pessoal, criado para organizar receitas, de
 - Tema claro/escuro
 - Persistência inicial em LocalStorage
 - Interface responsiva para desktop e mobile
+- Login e cadastro com Supabase Auth
+- Dados financeiros salvos por usuário no Supabase
 
 ## Tecnologias
 
@@ -24,6 +26,7 @@ Sistema web para controle financeiro pessoal, criado para organizar receitas, de
 - Recharts
 - Lucide React
 - Vite
+- Supabase
 
 ## Como rodar localmente
 
@@ -31,6 +34,19 @@ Instale as dependências:
 
 ```bash
 npm install
+```
+
+Crie um arquivo `.env` a partir do exemplo:
+
+```bash
+cp .env.example .env
+```
+
+Preencha:
+
+```bash
+VITE_SUPABASE_URL=https://seu-projeto.supabase.co
+VITE_SUPABASE_ANON_KEY=sua-chave-anon-publica
 ```
 
 Inicie o servidor de desenvolvimento:
@@ -47,7 +63,34 @@ npm run build
 
 ## Dados
 
-O FINANLO usa dados mockados na primeira abertura e salva alterações no LocalStorage do navegador. A estrutura já está preparada para futura integração com backend/API.
+O FINANLO cria uma base vazia para cada usuário novo. Apenas as categorias padrão do sistema são carregadas inicialmente. Os dados são salvos na tabela `finance_profiles` do Supabase.
+
+Para criar a tabela no Supabase, execute o SQL em:
+
+```text
+supabase/schema.sql
+```
+
+## Deploy na Vercel
+
+1. Importe o repositório `AndreasMeyerEngel/finanlo` na Vercel.
+2. Configure o framework como Vite.
+3. Adicione as variáveis de ambiente:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+4. Rode o deploy.
+
+Build command:
+
+```bash
+npm run build
+```
+
+Output directory:
+
+```bash
+dist
+```
 
 ## Marca
 

@@ -189,19 +189,19 @@ export function Configuracoes({ controller }: PageProps) {
       <Panel className="border-red-200 dark:border-red-500/30">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h3 className="font-semibold text-slate-950 dark:text-white">Dados de demonstração</h3>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Restaure os dados mockados iniciais e limpe alterações locais.</p>
+            <h3 className="font-semibold text-slate-950 dark:text-white">Limpar dados financeiros</h3>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Remove seus registros e mantém apenas as categorias padrão do sistema.</p>
           </div>
           <Button
             variant="danger"
             onClick={() => {
-              if (window.confirm('Restaurar dados iniciais? As alterações locais serão perdidas.')) {
+              if (window.confirm('Limpar seus dados financeiros? Apenas as categorias padrão serão mantidas.')) {
                 actions.resetData();
               }
             }}
           >
             <RotateCcw size={18} />
-            Restaurar demonstração
+            Limpar base
           </Button>
         </div>
       </Panel>
