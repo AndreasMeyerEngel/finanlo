@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { createEmptyFinanceData } from '../data/emptyData';
 import type { Debt, FinanceData, Invoice } from '../types/finance';
-import { buildDebtFutureInstallmentsSeries, buildFutureInstallmentsSeries, calculateDashboardMetrics } from './calculations';
+import {
+  buildDebtFutureInstallmentsSeries,
+  buildFutureInstallmentsSeries,
+  buildInvoiceSeries,
+  calculateDashboardMetrics,
+} from './calculations';
 
 function buildFinanceData(): FinanceData {
   const data = createEmptyFinanceData('Teste');
@@ -60,5 +65,29 @@ describe('financial calculations', () => {
     expect(metrics.totalDebt).toBe(1200);
     expect(metrics.activeDebts).toBe(1);
     expect(metrics.availableThisMonth).toBe(-500);
+  });
+
+  it('shows future card invoices in the invoice chart window', () => {
+    const data = buildFinanceData();
+    data.invoices = [
+      {
+        id: 'invoice-card-2026-06',
+        cardId: 'card-1',
+        month: '2026-06',
+        totalAmount: 16.9,
+        paidAmount: 0,
+        dueDate: '2026-06-11',
+        status: 'aberta',
+      },
+    ];
+
+    const invoiceSeries = buildInvoiceSeries(data, new Date('2026-05-18T12:00:00'));
+
+    expect(invoiceSeries[0].month).toBe('2026-05');
+    expect(invoiceSeries[1]).toMatchObject({
+      month: '2026-06',
+      total: 16.9,
+      aberto: 16.9,
+    });
   });
 });

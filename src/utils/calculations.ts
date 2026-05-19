@@ -303,7 +303,11 @@ export function buildDebtFutureInstallmentsSeries(data: FinanceData, referenceDa
 }
 
 export function buildInvoiceSeries(data: FinanceData, referenceDate = new Date()): InvoiceSeriesItem[] {
-  return getLastMonths(12, referenceDate).map((month) => {
+  const currentMonth = getCurrentMonthKey(referenceDate);
+  const hasFutureInvoices = data.invoices.some((invoice) => invoice.month > currentMonth);
+  const months = hasFutureInvoices ? getNextMonths(12, referenceDate) : getLastMonths(12, referenceDate);
+
+  return months.map((month) => {
     const invoices = data.invoices.filter((invoice) => invoice.month === month);
     const total = sum(invoices.map((invoice) => invoice.totalAmount));
     const pago = sum(invoices.map((invoice) => invoice.paidAmount));
