@@ -32,7 +32,7 @@ const initialForm = {
 };
 
 export function Dividas({ controller }: PageProps) {
-  const { data, metrics, debtEvolution, futureInstallments, actions } = controller;
+  const { data, metrics, debtEvolution, debtFutureInstallments, actions } = controller;
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(initialForm);
 
@@ -308,7 +308,7 @@ export function Dividas({ controller }: PageProps) {
 
       <div className="grid gap-6 xl:grid-cols-2">
         <DebtEvolutionChart data={debtEvolution} />
-        <FutureInstallmentsChart data={futureInstallments} />
+        <FutureInstallmentsChart data={debtFutureInstallments} />
         <CategoryDonutChart data={creditorSeries} title="Dívidas por credor" />
         <CategoryDonutChart data={prioritySeries} title="Dívidas por prioridade" />
       </div>

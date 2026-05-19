@@ -4,6 +4,8 @@ node_modules/
 # Build
 dist/
 build/
+test-results/
+playwright-report/
 
 # Cache e artefatos TypeScript
 *.tsbuildinfo

@@ -11,10 +11,8 @@ export type ThemeMode = 'light' | 'dark';
 
 export type PageId =
   | 'dashboard'
-  | 'lancamentos'
-  | 'gastos-diarios'
+  | 'transacoes'
   | 'receitas'
-  | 'despesas'
   | 'faturas'
   | 'dividas'
   | 'categorias'

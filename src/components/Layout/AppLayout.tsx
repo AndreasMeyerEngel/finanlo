@@ -1,7 +1,6 @@
 import {
   ArrowLeftRight,
   Bell,
-  Coffee,
   CreditCard,
   Landmark,
   LayoutDashboard,
@@ -9,7 +8,6 @@ import {
   Menu,
   Moon,
   PieChart,
-  ReceiptText,
   Search,
   Settings,
   Sun,
@@ -25,10 +23,8 @@ import { Button } from '../UI';
 
 const navigation: NavigationItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'lancamentos', label: 'Lançamentos', icon: ArrowLeftRight },
-  { id: 'gastos-diarios', label: 'Gastos Diários', icon: Coffee },
+  { id: 'transacoes', label: 'Transações', icon: ArrowLeftRight },
   { id: 'receitas', label: 'Receitas', icon: WalletCards },
-  { id: 'despesas', label: 'Despesas', icon: ReceiptText },
   { id: 'faturas', label: 'Faturas', icon: CreditCard },
   { id: 'dividas', label: 'Gestão de Dívidas', icon: Landmark },
   { id: 'categorias', label: 'Categorias', icon: Tags },
@@ -38,8 +34,8 @@ const navigation: NavigationItem[] = [
 
 const mobileNavigation: Array<NavigationItem & { shortLabel: string }> = [
   { id: 'dashboard', label: 'Dashboard', shortLabel: 'Início', icon: LayoutDashboard },
-  { id: 'lancamentos', label: 'Lançamentos', shortLabel: 'Lançar', icon: ArrowLeftRight },
-  { id: 'gastos-diarios', label: 'Gastos Diários', shortLabel: 'Gastos', icon: Coffee },
+  { id: 'transacoes', label: 'Transações', shortLabel: 'Transações', icon: ArrowLeftRight },
+  { id: 'receitas', label: 'Receitas', shortLabel: 'Receitas', icon: WalletCards },
   { id: 'faturas', label: 'Faturas', shortLabel: 'Faturas', icon: CreditCard },
   { id: 'dividas', label: 'Gestão de Dívidas', shortLabel: 'Dívidas', icon: Landmark },
 ];
@@ -68,11 +64,13 @@ export function AppLayout({ activePage, setActivePage, controller, currentUserEm
     }
 
     return [
-      ...data.transactions.map((item) => ({ page: 'lancamentos' as PageId, label: item.description, detail: item.type })),
+      ...data.transactions.map((item) => ({ page: 'transacoes' as PageId, label: item.description, detail: item.type })),
+      ...data.dailyExpenses.map((item) => ({ page: 'transacoes' as PageId, label: item.description, detail: 'gasto diário' })),
       ...data.debts.map((item) => ({ page: 'dividas' as PageId, label: item.name, detail: item.creditor })),
       ...data.incomes.map((item) => ({ page: 'receitas' as PageId, label: item.description, detail: 'receita' })),
-      ...data.expenses.map((item) => ({ page: 'despesas' as PageId, label: item.description, detail: item.status })),
+      ...data.expenses.map((item) => ({ page: 'transacoes' as PageId, label: item.description, detail: item.status })),
       ...data.creditCards.map((item) => ({ page: 'faturas' as PageId, label: item.name, detail: item.bank })),
+      ...data.invoices.map((item) => ({ page: 'faturas' as PageId, label: `Fatura ${item.month}`, detail: item.status })),
       ...data.categories.map((item) => ({ page: 'categorias' as PageId, label: item.name, detail: item.type })),
     ]
       .filter((item) => `${item.label} ${item.detail}`.toLowerCase().includes(value))
@@ -260,7 +258,7 @@ export function AppLayout({ activePage, setActivePage, controller, currentUserEm
         </header>
         <main className="px-3 py-4 pb-28 sm:px-6 sm:py-6 lg:px-8 lg:pb-6">{children}</main>
       </div>
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/95 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 lg:hidden">
         <div className="grid grid-cols-5 gap-1">
           {mobileNavigation.map((item) => {
             const Icon = item.icon;

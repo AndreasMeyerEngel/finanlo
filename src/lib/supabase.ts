@@ -6,31 +6,38 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undef
 
 export const hasSupabaseConfig = Boolean(supabaseUrl && supabaseAnonKey);
 
-export const supabase = hasSupabaseConfig
-  ? createClient<{
-      public: {
-        Tables: {
-          finance_profiles: {
-            Row: {
-              user_id: string;
-              data: FinanceData;
-              created_at: string;
-              updated_at: string;
-            };
-            Insert: {
-              user_id: string;
-              data: FinanceData;
-              created_at?: string;
-              updated_at?: string;
-            };
-            Update: {
-              data?: FinanceData;
-              updated_at?: string;
-            };
-          };
+type Database = {
+  public: {
+    Tables: {
+      finance_profiles: {
+        Row: {
+          user_id: string;
+          data: FinanceData;
+          created_at: string;
+          updated_at: string;
         };
+        Insert: {
+          user_id: string;
+          data: FinanceData;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          data?: FinanceData;
+          updated_at?: string;
+        };
+        Relationships: [];
       };
-    }>(supabaseUrl!, supabaseAnonKey!, {
+    };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
+  };
+};
+
+export const supabase = hasSupabaseConfig
+  ? createClient<Database>(supabaseUrl!, supabaseAnonKey!, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,

@@ -280,6 +280,28 @@ export function buildFutureInstallmentsSeries(data: FinanceData, referenceDate =
   });
 }
 
+export function buildDebtFutureInstallmentsSeries(data: FinanceData, referenceDate = new Date()): FutureInstallmentItem[] {
+  return getNextMonths(12, referenceDate).map((month) => {
+    const [year, monthNumber] = month.split('-').map(Number);
+    const parcelas = sum(
+      data.debts
+        .filter((debt) => dueStatuses.has(debt.status) && getDebtRemaining(debt) > 0)
+        .map((debt) => {
+          const dueDate = clampDay(year, monthNumber - 1, debt.monthlyDueDay);
+          const [startYear, startMonth, startDay] = debt.startDate.split('-').map(Number);
+          const startDate = new Date(startYear, startMonth - 1, startDay);
+          return dueDate >= startDate ? debt.installmentAmount : 0;
+        }),
+    );
+
+    return {
+      month,
+      label: formatMonthLabel(month),
+      parcelas,
+    };
+  });
+}
+
 export function buildInvoiceSeries(data: FinanceData, referenceDate = new Date()): InvoiceSeriesItem[] {
   return getLastMonths(12, referenceDate).map((month) => {
     const invoices = data.invoices.filter((invoice) => invoice.month === month);

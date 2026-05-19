@@ -17,6 +17,7 @@ import type {
   Transaction,
 } from '../types/finance';
 import {
+  buildDebtFutureInstallmentsSeries,
   buildDebtEvolutionSeries,
   buildExpenseCategorySeries,
   buildFutureInstallmentsSeries,
@@ -271,6 +272,7 @@ export function useFinanceData(user: User) {
   const categorySeries = useMemo(() => buildExpenseCategorySeries(data), [data]);
   const debtEvolution = useMemo(() => buildDebtEvolutionSeries(data), [data]);
   const futureInstallments = useMemo(() => buildFutureInstallmentsSeries(data), [data]);
+  const debtFutureInstallments = useMemo(() => buildDebtFutureInstallmentsSeries(data), [data]);
   const invoiceSeries = useMemo(() => buildInvoiceSeries(data), [data]);
   const incomeHistory = useMemo(() => buildIncomeHistorySeries(data), [data]);
   const notifications = useMemo(() => buildNotifications(data), [data]);
@@ -679,6 +681,7 @@ export function useFinanceData(user: User) {
     categorySeries,
     debtEvolution,
     futureInstallments,
+    debtFutureInstallments,
     invoiceSeries,
     incomeHistory,
     notifications,
